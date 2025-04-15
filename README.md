@@ -1,4 +1,3 @@
-# ucas_srun_ver.go
 # UCAS 校园网认证工具
 
 这是一个用于中国科学院大学校园网的自动认证工具，可在后台运行并自动保持网络连接。
@@ -28,7 +27,7 @@
   "password": "your_password",
   "interval": 300
 }
-
+```
 # UCAS 校园网认证程序编译指南
 
 以下是编译 Go 语言版 UCAS 校园网认证程序的完整步骤，按顺序执行即可生成可执行文件。
@@ -36,7 +35,7 @@
 ## 1. 初始化 Go 模块
 
 ```bash
-cd c:\Users\yzc27\Documents\JKD\srun_login
+cd 替换为你的路径
 go mod init ucas-srun-login
 ```
 
