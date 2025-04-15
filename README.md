@@ -1,7 +1,7 @@
 # UCAS 校园网认证工具
 
 这是一个用于中国科学院大学校园网的自动认证工具，可在后台运行并自动保持网络连接。
-思路来自[iskoldt-X/SRUN-authenticator](https://github.com/coffeehat/BIT-srun-login-script)
+思路来自[iskoldt-X/SRUN-authenticator](https://github.com/iskoldt-X/SRUN-authenticator)
 
 ## 功能特点
 
