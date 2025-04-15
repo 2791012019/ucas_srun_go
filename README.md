@@ -13,10 +13,11 @@
 
 ## 使用方法
 
-1. 下载最新版本
+1. 在右边Release找到并下载最新版本
 2. 运行程序，系统将自动创建配置文件模板 `config.json`
 3. 编辑 `config.json` 文件，输入你的用户名和密码，默认检测间隔是300秒
 4. 再次运行程序
+5. 将程序快捷方式放入启动文件夹： ```%APPDATA%\Microsoft\Windows\Start Menu\Programs\Startup``` 可实现自启动
 
 ### 配置文件说明
 
