@@ -21,13 +21,24 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/go-toast/toast" // 用于 Windows 通知
+	"github.com/getlantern/systray"
+	"github.com/go-toast/toast"
 )
+
+var iconData = []byte{
+	0x00, 0x00, 0x01, 0x00, 0x01, 0x00, 0x01, 0x01, 0x00, 0x00, 0x01, 0x00,
+	0x18, 0x00, 0x0A, 0x00, 0x00, 0x00, 0x16, 0x00, 0x00, 0x00, 0x28, 0x00,
+	0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, 0x00,
+	0x18, 0x00, 0x00, 0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFF, 0x00, 0x00, 0x00, 0x00, 0x00,
+}
 
 // 日志文件
 var (
 	logFile *os.File
 	logger  *log.Logger
+	done    chan bool // 全局变量，用于通知主程序退出
 )
 
 const (
@@ -37,7 +48,7 @@ const (
 var (
 	username        = ""
 	password        = ""
-	getIPAPI        = "http://124.16.81.61/cgi-bin/rad_user_info?callback=JQuery"
+	getIPAPI        = "http://portal.ucas.ac.cn/cgi-bin/rad_user_info?callback=JQuery"
 	initURL         = "https://portal.ucas.ac.cn"
 	getChallengeAPI = "https://portal.ucas.ac.cn/cgi-bin/get_challenge"
 	srunPortalAPI   = "https://portal.ucas.ac.cn/cgi-bin/srun_portal"
@@ -460,6 +471,82 @@ func checkAndLogin() {
 	}
 }
 
+// 初始化系统托盘图标
+func initSystray() {
+	// 在一个新的 goroutine 中启动系统托盘
+	go systray.Run(onReady, onExit)
+}
+
+// 系统托盘准备就绪时的回调函数
+func onReady() {
+	// 设置图标（使用示例图标，你可以替换为自己的图标）
+	systray.SetIcon(iconData)
+	systray.SetTitle("UCAS认证程序")
+	systray.SetTooltip("UCAS校园网认证程序")
+
+	// 添加菜单项
+	mLogin := systray.AddMenuItem("立即认证", "立即执行网络认证")
+	mStatus := systray.AddMenuItem("检查状态", "检查当前网络认证状态")
+	systray.AddSeparator()
+	mQuit := systray.AddMenuItem("退出", "退出程序")
+
+	// 处理菜单点击事件
+	go func() {
+		for {
+			select {
+			case <-mLogin.ClickedCh:
+				// 用户点击"立即认证"
+				logMsg("用户触发立即认证", false, false)
+				go func() {
+					checkAndLogin()
+					// 认证后更新状态
+					if isConnected() {
+						mStatus.SetTitle("状态: 已连接")
+						sendNotification("UCAS网络认证", "认证成功", false)
+					} else {
+						mStatus.SetTitle("状态: 未连接")
+						sendNotification("UCAS网络认证", "认证失败", true)
+					}
+				}()
+
+			case <-mStatus.ClickedCh:
+				// 用户点击"检查状态"
+				go func() {
+					if isConnected() {
+						mStatus.SetTitle("状态: 已连接")
+						sendNotification("UCAS网络认证", "当前已连接到网络", false)
+					} else {
+						mStatus.SetTitle("状态: 未连接")
+						sendNotification("UCAS网络认证", "当前未连接到网络", true)
+					}
+				}()
+
+			case <-mQuit.ClickedCh:
+				// 用户点击"退出"
+				logMsg("用户通过托盘菜单退出程序", false, false)
+				systray.Quit()
+				return
+			}
+		}
+	}()
+
+	// 初始检查状态
+	if isConnected() {
+		mStatus.SetTitle("状态: 已连接")
+	} else {
+		mStatus.SetTitle("状态: 未连接")
+	}
+
+	logMsg("系统托盘图标已初始化", false, false)
+}
+
+// 系统托盘退出时的回调函数
+func onExit() {
+	logMsg("系统托盘已退出", false, false)
+	// 通知主程序退出
+	done <- true
+}
+
 func main() {
 	// 初始化日志
 	initLogger()
@@ -497,14 +584,18 @@ func main() {
 	// 处理系统信号，优雅退出
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
-	done := make(chan bool, 1)
+	done = make(chan bool, 1) // 注意: 将 done 改为全局变量
 
 	// 启动信号处理
 	go func() {
 		<-sigs
 		logMsg("程序收到退出信号，即将退出", false, false)
+		systray.Quit() // 退出系统托盘
 		done <- true
 	}()
+
+	// 初始化系统托盘
+	initSystray()
 
 	// 首次运行
 	checkAndLogin()
